@@ -15,7 +15,6 @@ const PACK_SIZE = 4;
 // ===================================
 document.addEventListener('DOMContentLoaded', () => {
     initHeader();
-    initMobileMenu();
     initProductFilter();
     initScrollReveal();
     initSmoothScroll();
@@ -37,22 +36,32 @@ function initHeader() {
     });
 }
 
+
 // ===================================
-// MOBILE MENU
+// THEME TOGGLE - DAY/NIGHT MODE
 // ===================================
-function initMobileMenu() {
-    const mobileToggle = document.getElementById('mobile-toggle');
-    const navMenu = document.getElementById('nav-menu');
+function initThemeToggle() {
+    const themeToggle = document.getElementById('theme-toggle');
+    const body = document.body;
     
-    mobileToggle.addEventListener('click', () => {
-        navMenu.classList.toggle('active');
-    });
+    // Vérifier la préférence sauvegardée
+    const savedTheme = localStorage.getItem('glamour-theme');
+    if (savedTheme === 'light') {
+        body.classList.add('light-mode');
+    }
     
-    // Fermer au clic sur un lien
-    document.querySelectorAll('.nav-link').forEach(link => {
-        link.addEventListener('click', () => {
-            navMenu.classList.remove('active');
-        });
+    // Toggle au clic
+    themeToggle.addEventListener('click', () => {
+        body.classList.toggle('light-mode');
+        
+        // Sauvegarder la préférence
+        if (body.classList.contains('light-mode')) {
+            localStorage.setItem('glamour-theme', 'light');
+            showToast('☀️ Mode jour activé');
+        } else {
+            localStorage.setItem('glamour-theme', 'dark');
+            showToast('🌙 Mode nuit activé');
+        }
     });
 }
 
@@ -308,33 +317,80 @@ function closeOrderModal() {
     }
 }
 
+function calculatePrice(count) {
+    const packs = Math.floor(count / PACK_SIZE);
+    const units = count % PACK_SIZE;
+    const totalPrice = (packs * PACK_PRICE) + (units * UNIT_PRICE);
+    return { totalPrice, packs, units };
+}
+
 function submitOrder(e) {
     e.preventDefault();
     
-    // Simuler l'envoi de la commande
-    const btn = e.target.querySelector('button[type="submit"]');
+    const form = e.target;
+    const btn = form.querySelector('button[type="submit"]');
     const originalText = btn.textContent;
     btn.textContent = 'Envoi en cours...';
     btn.disabled = true;
     
+    // Récupérer les données du formulaire
+    const name = form.querySelector('input[type="text"]').value;
+    const phone = form.querySelector('input[type="tel"]').value;
+    const address = form.querySelectorAll('input[type="text"]')[1].value;
+    const instructions = form.querySelector('textarea').value || 'Aucune';
+    
+    // Construire le message de commande
+    const orderDetails = selectedProducts.map(p => `- ${p.name} (${p.price} DHS)`).join('\n');
+    const { totalPrice } = calculatePrice(selectedProducts.length);
+    
+    const message = `🛍️ *NOUVELLE COMMANDE GLAMOUR PARFUMS*
+
+👤 *Client:* ${name}
+📱 *Téléphone:* ${phone}
+📍 *Adresse:* ${address}
+📝 *Instructions:* ${instructions}
+
+📦 *Produits commandés:*
+${orderDetails}
+
+💰 *Total à payer:* ${totalPrice} DHS
+📊 *Nombre de parfums:* ${selectedProducts.length}
+
+---
+Commande reçue le ${new Date().toLocaleString('fr-FR')}`;
+    
+    // Numéro WhatsApp Glamour Parfums (à remplacer par votre vrai numéro)
+    const whatsappNumber = '212664884292'; // Format: 212 + numéro sans le 0 initial
+    
+    // Ouvrir WhatsApp avec le message pré-rempli
+    const whatsappUrl = `https://wa.me/${whatsappNumber}?text=${encodeURIComponent(message)}`;
+    window.open(whatsappUrl, '_blank');
+    
+    // Préparer l'email
+    const emailSubject = `Nouvelle commande - ${name} - ${totalPrice} DHS`;
+    const emailBody = encodeURIComponent(message);
+    const emailUrl = `mailto:contact@glamourparfums.shop?subject=${encodeURIComponent(emailSubject)}&body=${emailBody}`;
+    
+    // Ouvrir le client email (avec un petit délai pour éviter le blocage popup)
+    setTimeout(() => {
+        window.open(emailUrl, '_blank');
+    }, 500);
+    
+    // Feedback utilisateur
     setTimeout(() => {
         closeOrderModal();
-        showToast('🎉 Commande envoyée avec succès ! Nous vous contacterons bientôt.');
+        showToast('📱 WhatsApp ouvert ! Commande copiée. Envoyez le message.');
         
-        // Réinitialiser la sélection
+        // Réinitialiser
         selectedProducts = [];
         updateCartSummary();
-        
-        // Réinitialiser l'UI
-        document.querySelectorAll('.product-card').forEach(card => {
-            card.classList.remove('selected');
-        });
+        document.querySelectorAll('.product-card').forEach(card => card.classList.remove('selected'));
         document.querySelectorAll('.select-btn').forEach(btn => {
             btn.classList.remove('selected');
             btn.querySelector('.select-icon').textContent = '➕';
             btn.querySelector('.select-text').textContent = 'Sélectionner';
         });
-    }, 1500);
+    }, 1000);
 }
 
 // ===================================
@@ -458,23 +514,332 @@ function initParticles() {
 // GESTION DES FORMULAIRES EXISTANTS
 // ===================================
 document.addEventListener('DOMContentLoaded', () => {
-    // Formulaire de contact
+    // Formulaire de contact - envoie directement par email
     const contactForm = document.getElementById('contact-form');
     if (contactForm) {
         contactForm.addEventListener('submit', (e) => {
             e.preventDefault();
-            showToast('Message envoyé avec succès !');
+            
+            // Recuperer les donnees du formulaire
+            const name = document.getElementById('name').value;
+            const email = document.getElementById('email').value;
+            const message = document.getElementById('message').value;
+            
+            // Construire l'email
+            const subject = `Nouveau message de ${name} - Glamour Parfums`;
+            const body = `👤 Nom: ${name}
+📧 Email: ${email}
+
+📝 Message:
+${message}
+
+---
+Envoye depuis le formulaire de contact du site
+GlamourParfums.shop
+Date: ${new Date().toLocaleString('fr-FR')}`;
+            
+            // Ouvrir le client email
+            const mailtoUrl = `mailto:contact@glamourparfums.shop?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+            window.open(mailtoUrl, '_blank');
+            
+            showToast('📧 Client email ouvert ! Envoyez votre message.');
             contactForm.reset();
         });
     }
     
-    // Newsletter
+    // Newsletter - utilise Formspree si configure, sinon mailto
     const newsletterForm = document.getElementById('newsletter-form');
     if (newsletterForm) {
-        newsletterForm.addEventListener('submit', (e) => {
-            e.preventDefault();
-            showToast('Inscription confirmée !');
-            newsletterForm.reset();
-        });
+        // Si pas d'action Formspree configuree, utiliser mailto
+        if (!newsletterForm.getAttribute('action') || newsletterForm.getAttribute('action').includes('YOUR_FORM_ID')) {
+            newsletterForm.addEventListener('submit', (e) => {
+                e.preventDefault();
+                
+                const email = newsletterForm.querySelector('input[name="email"]').value;
+                const subject = 'Nouvelle inscription Newsletter - Glamour Parfums';
+                const body = `📧 Email: ${email}\n\nSouhaite s'inscrire à la newsletter.\n\n---\nDate: ${new Date().toLocaleString('fr-FR')}`;
+                
+                const mailtoUrl = `mailto:contact@glamourparfums.shop?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+                window.open(mailtoUrl, '_blank');
+                
+                showToast('📧 Inscription newsletter préparée !');
+                newsletterForm.reset();
+            });
+        }
     }
+
+    // Initialiser le toggle de thème
+    initThemeToggle();
+    
+    // Initialiser améliorations mobile
+    initMobileMenu();
+    initFilterScroll();
+    
+    // Initialiser le carousel Les Plus Aimés
+    initCarousel();
 });
+
+// ===================================
+// MOBILE IMPROVEMENTS
+// ===================================
+
+function initMobileMenu() {
+    const mobileToggle = document.getElementById('mobile-toggle');
+    const navMenu = document.getElementById('nav-menu');
+    const navLinks = document.querySelectorAll('.nav-link');
+    
+    if (!mobileToggle || !navMenu) {
+        console.error('Mobile menu elements not found');
+        return;
+    }
+    
+    mobileToggle.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        
+        const isActive = navMenu.classList.toggle('active');
+        
+        const spans = mobileToggle.querySelectorAll('span');
+        if (isActive) {
+            spans[0].style.transform = 'rotate(45deg) translate(5px, 5px)';
+            spans[1].style.opacity = '0';
+            spans[2].style.transform = 'rotate(-45deg) translate(5px, -5px)';
+            document.body.style.overflow = 'hidden';
+        } else {
+            spans[0].style.transform = 'none';
+            spans[1].style.opacity = '1';
+            spans[2].style.transform = 'none';
+            document.body.style.overflow = '';
+        }
+    });
+    
+    navLinks.forEach(link => {
+        link.addEventListener('click', () => {
+            navMenu.classList.remove('active');
+            const spans = mobileToggle.querySelectorAll('span');
+            spans[0].style.transform = 'none';
+            spans[1].style.opacity = '1';
+            spans[2].style.transform = 'none';
+            document.body.style.overflow = '';
+        });
+    });
+    
+    // Fermer au clic en dehors du menu
+    document.addEventListener('click', (e) => {
+        if (navMenu.classList.contains('active') && 
+            !navMenu.contains(e.target) && 
+            !mobileToggle.contains(e.target)) {
+            navMenu.classList.remove('active');
+            const spans = mobileToggle.querySelectorAll('span');
+            spans[0].style.transform = 'none';
+            spans[1].style.opacity = '1';
+            spans[2].style.transform = 'none';
+            document.body.style.overflow = '';
+        }
+    });
+}
+
+function initFilterScroll() {
+    const filterTabs = document.querySelector('.filter-tabs');
+    if (!filterTabs || window.innerWidth > 480) return;
+    
+    let isDown = false;
+    let startX;
+    let scrollLeft;
+    
+    filterTabs.addEventListener('mousedown', (e) => {
+        isDown = true;
+        filterTabs.style.cursor = 'grabbing';
+        startX = e.pageX - filterTabs.offsetLeft;
+        scrollLeft = filterTabs.scrollLeft;
+    });
+    
+    filterTabs.addEventListener('mouseleave', () => {
+        isDown = false;
+        filterTabs.style.cursor = 'grab';
+    });
+    
+    filterTabs.addEventListener('mouseup', () => {
+        isDown = false;
+        filterTabs.style.cursor = 'grab';
+    });
+    
+    filterTabs.addEventListener('mousemove', (e) => {
+        if (!isDown) return;
+        e.preventDefault();
+        const x = e.pageX - filterTabs.offsetLeft;
+        const walk = (x - startX) * 2;
+        filterTabs.scrollLeft = scrollLeft - walk;
+    });
+    
+    filterTabs.style.cursor = 'grab';
+}
+
+// ===================================
+// CAROUSEL LES PLUS AIMÉS
+// ===================================
+
+function initCarousel() {
+    const track = document.getElementById('carousel-track');
+    const prevBtn = document.getElementById('carousel-prev');
+    const nextBtn = document.getElementById('carousel-next');
+    const dots = document.querySelectorAll('.carousel-dots .dot');
+    const wrapper = document.querySelector('.carousel-wrapper');
+    
+    if (!track || !prevBtn || !nextBtn) return;
+    
+    const slides = track.children;
+    const totalSlides = slides.length;
+    let currentIndex = 0;
+    let autoPlayInterval;
+    
+    // Déterminer le nombre de slides visibles selon la largeur
+    function getSlidesPerView() {
+        if (window.innerWidth >= 1024) return 4;
+        if (window.innerWidth >= 768) return 2;
+        return 1;
+    }
+    
+    // Mettre à jour la position du carousel
+    function updateCarousel() {
+        const slidesPerView = getSlidesPerView();
+        const slideWidth = 100 / slidesPerView;
+        const maxIndex = totalSlides - slidesPerView;
+        
+        // Limiter l'index
+        if (currentIndex < 0) currentIndex = 0;
+        if (currentIndex > maxIndex) currentIndex = maxIndex;
+        
+        // Appliquer la transformation
+        const translateX = -(currentIndex * slideWidth);
+        track.style.transform = `translateX(${translateX}%)`;
+        
+        // Mettre à jour les dots
+        dots.forEach((dot, index) => {
+            dot.classList.toggle('active', index === currentIndex);
+        });
+        
+        // Masquer/afficher les boutons
+        prevBtn.style.opacity = currentIndex === 0 ? '0.5' : '1';
+        prevBtn.style.pointerEvents = currentIndex === 0 ? 'none' : 'auto';
+        nextBtn.style.opacity = currentIndex >= maxIndex ? '0.5' : '1';
+        nextBtn.style.pointerEvents = currentIndex >= maxIndex ? 'none' : 'auto';
+    }
+    
+    // Navigation
+    prevBtn.addEventListener('click', () => {
+        currentIndex--;
+        updateCarousel();
+        resetAutoPlay();
+    });
+    
+    nextBtn.addEventListener('click', () => {
+        currentIndex++;
+        updateCarousel();
+        resetAutoPlay();
+    });
+    
+    // Dots navigation
+    dots.forEach((dot, index) => {
+        dot.addEventListener('click', () => {
+            currentIndex = index;
+            updateCarousel();
+            resetAutoPlay();
+        });
+    });
+    
+    // Support tactile swipe
+    let touchStartX = 0;
+    let touchEndX = 0;
+    let isSwiping = false;
+    
+    track.addEventListener('touchstart', (e) => {
+        touchStartX = e.changedTouches[0].screenX;
+        isSwiping = true;
+        track.style.transition = 'none';
+    }, { passive: true });
+    
+    track.addEventListener('touchmove', (e) => {
+        if (!isSwiping) return;
+        
+        const touchX = e.changedTouches[0].screenX;
+        const diff = touchStartX - touchX;
+        const slidesPerView = getSlidesPerView();
+        const slideWidth = track.offsetWidth / slidesPerView;
+        
+        // Suivre le mouvement du doigt
+        const currentTranslate = -(currentIndex * slideWidth);
+        track.style.transform = `translateX(${currentTranslate - diff}px)`;
+    }, { passive: true });
+    
+    track.addEventListener('touchend', (e) => {
+        if (!isSwiping) return;
+        isSwiping = false;
+        
+        touchEndX = e.changedTouches[0].screenX;
+        track.style.transition = 'transform 0.5s cubic-bezier(0.4, 0, 0.2, 1)';
+        
+        const diff = touchStartX - touchEndX;
+        const threshold = 50; // Distance minimale pour un swipe
+        
+        if (Math.abs(diff) > threshold) {
+            if (diff > 0) {
+                // Swipe vers la gauche -> slide suivante
+                currentIndex++;
+            } else {
+                // Swipe vers la droite -> slide précédente
+                currentIndex--;
+            }
+        }
+        
+        updateCarousel();
+        resetAutoPlay();
+        
+        // Marquer comme swipé pour masquer l'indicateur
+        if (wrapper) {
+            wrapper.classList.add('swiped');
+        }
+    }, { passive: true });
+    
+    // Auto-play
+    function startAutoPlay() {
+        autoPlayInterval = setInterval(() => {
+            const slidesPerView = getSlidesPerView();
+            const maxIndex = totalSlides - slidesPerView;
+            
+            if (currentIndex < maxIndex) {
+                currentIndex++;
+            } else {
+                currentIndex = 0;
+            }
+            updateCarousel();
+        }, 5000);
+    }
+    
+    function resetAutoPlay() {
+        clearInterval(autoPlayInterval);
+        startAutoPlay();
+    }
+    
+    // Pause auto-play au survol
+    track.addEventListener('mouseenter', () => {
+        clearInterval(autoPlayInterval);
+    });
+    
+    track.addEventListener('mouseleave', () => {
+        startAutoPlay();
+    });
+    
+    // Mettre à jour au redimensionnement
+    let resizeTimeout;
+    window.addEventListener('resize', () => {
+        clearTimeout(resizeTimeout);
+        resizeTimeout = setTimeout(() => {
+            updateCarousel();
+        }, 250);
+    });
+    
+    // Initialisation
+    updateCarousel();
+    startAutoPlay();
+}
